@@ -12,10 +12,11 @@ let pendingReload = false;
 
 // ---- dev convenience (served by ./serve.py): reload when a newer build lands ----------------
 let buildStamp = null;
+let pollTimer = null;
 async function pollBuild() {
   try {
     const r = await fetch('/__build', { cache: 'no-store' });
-    if (!r.ok) return;
+    if (!r.ok) { clearInterval(pollTimer); return; } // static hosting: no dev server, stop asking
     const s = await r.text();
     if (buildStamp === null) buildStamp = s;
     else if (s !== buildStamp) {
@@ -26,9 +27,9 @@ async function pollBuild() {
         location.reload();
       }
     }
-  } catch { /* static hosting: no /__build, nothing to do */ }
+  } catch { clearInterval(pollTimer); /* static hosting: no /__build, nothing to do */ }
 }
-setInterval(pollBuild, 1200);
+pollTimer = setInterval(pollBuild, 1200);
 pollBuild();
 fetch('pkg/BUILD', { cache: 'no-store' }).then((r) => r.ok ? r.text() : '').then((t) => {
   if (t.trim()) for (const el of document.querySelectorAll('.build')) el.textContent = 'build ' + t.trim();
